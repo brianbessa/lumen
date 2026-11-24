@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LUMEN — Simulador de Conforto Lumínico</title>
+<style>
+:root{--bg:#0b1020;--gl:rgba(14,20,38,.76);--bd:rgba(255,255,255,.13);--tx:#e8ecf8;--mu:#9aa6c4;--ac:#ffc857;--ok:#4ade80;--bad:#f87171;--bl:#60a5fa;color-scheme:dark}
+*{box-sizing:border-box}html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--tx);font:13px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+#gl{position:fixed;inset:0;pointer-events:none;opacity:0;background:radial-gradient(circle at 70% 40%,#fffbe8 0,rgba(255,248,220,.75) 35%,rgba(255,248,220,.25) 100%)}
+#cross{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:#fff;opacity:.8;pointer-events:none;box-shadow:0 0 0 2px rgba(0,0,0,.35)}
+#hint{position:fixed;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--gl);border:1px solid var(--bd);padding:7px 14px;border-radius:99px;color:var(--tx);white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}
+.p{position:fixed;top:max(12px,env(safe-area-inset-top));background:var(--gl);border:1px solid var(--bd);border-radius:14px;padding:12px 14px;backdrop-filter:blur(10px);width:292px;max-height:calc(100% - 24px);overflow:auto}
+#mis{left:12px}#ctl{right:12px}
+h1,h2,h3{margin:0 0 6px}h3{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ac)}
+.mu{color:var(--mu)}.sm{font-size:11px}
+.mi{display:flex;gap:8px;padding:5px 0;opacity:.55}.mi.cur{opacity:1}.mi.dn{opacity:.9}
+.mi i{font-style:normal;width:20px;height:20px;border-radius:50%;border:1px solid var(--bd);display:grid;place-items:center;flex:none;font-size:11px}
+.mi.dn i{background:var(--ok);color:#052;border-color:var(--ok)}.mi.cur i{border-color:var(--ac);color:var(--ac)}
+.goal{padding:2px 0 2px 4px}.goal.y{color:var(--ok)}
+.bar{height:7px;border-radius:9px;background:rgba(255,255,255,.1);position:relative;overflow:hidden;margin:3px 0 8px}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:9px;background:var(--bl);transition:width .2s}
+.bar u{position:absolute;top:0;bottom:0;background:rgba(74,222,128,.28)}
+.mt{display:flex;justify-content:space-between}
+label{display:block;margin:7px 0}label b{float:right;color:var(--ac);font-weight:600}
+input[type=range]{width:100%;accent-color:var(--ac);margin:2px 0}
+button{font:inherit;color:var(--tx);background:rgba(255,255,255,.08);border:1px solid var(--bd);border-radius:9px;padding:6px 10px;cursor:pointer}
+button:hover{background:rgba(255,255,255,.16)}button.on{background:var(--ac);color:#241a00;border-color:var(--ac)}
+button.pr{background:var(--ac);color:#241a00;border-color:var(--ac);font-weight:700;padding:10px 18px;font-size:14px}
+.lamp{display:grid;grid-template-columns:96px 1fr;gap:8px;align-items:center;margin:5px 0}
+select{width:100%;font:inherit;color:var(--tx);background:#1b2340;border:1px solid var(--bd);border-radius:8px;padding:4px;margin-top:3px}
+.seg{display:flex;gap:5px}.seg button{flex:1;padding:5px 2px}
+canvas#ch{width:100%;height:auto;display:block;margin-top:6px}
+.lg span{margin-right:8px}.lg i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:3px}
+#ov{position:fixed;inset:0;display:none;place-items:center;background:rgba(5,8,18,.72);backdrop-filter:blur(6px);padding:12px}
+#ov.on{display:grid}
+.card{background:#111830;border:1px solid var(--bd);border-radius:18px;padding:24px 28px;max-width:560px;width:100%;max-height:96%;overflow:auto}
+.card h1{font-size:30px;letter-spacing:.2em;color:var(--ac)}
+.card kbd{background:rgba(255,255,255,.12);border-radius:5px;padding:1px 6px;font-size:12px}
+table{width:100%;border-collapse:collapse;margin:10px 0}td,th{padding:5px 4px;text-align:left;border-bottom:1px solid var(--bd)}
+@media(max-width:760px){.p{width:44vw}}
+</style></head><body>
+<canvas id="c"></canvas><div id="gl"></div><div id="cross"></div><div id="hint"></div><div id="cmp" style="position:fixed;top:max(12px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);background:var(--gl);border:1px solid var(--bd);padding:5px 12px;border-radius:99px;font-size:12px;white-space:nowrap"></div>
+<div class="p" id="mis"></div>
+<div class="p" id="ctl">
+ <h3>Medições na mesa</h3>
+ <div class="mt"><span>Iluminância</span><b id="mL"></b></div><div class="bar"><i id="bL"></i><u style="left:50%;width:30%"></u></div>
+ <div class="mt"><span>Potência</span><b id="mW"></b></div><div class="bar"><i id="bW"></i></div>
+ <div class="mt"><span>Ofuscamento</span><b id="mG"></b></div><div class="bar"><i id="bG"></i><u style="left:0;width:40%"></u></div>
+ <details style="margin-top:8px"><summary style="cursor:pointer;color:var(--ac)">Análises e controles avançados</summary>
+ <div class="mt"><span>Equilíbrio mesa/ambiente</span><b id="mU"></b></div>
+ <div class="mu sm" id="mK"></div>
+ <h3 style="margin-top:12px">Sol e lugar</h3>
+ <label>Cidade <select id="city"></select></label>
+ <label>Data <select id="day"></select></label>
+ <label>Céu <select id="sky"><option value="claro">Claro (0–30% nuvens)</option><option value="parcial">Parcial (30–70%)</option><option value="enc">Encoberto (70–100%)</option></select></label>
+ <label>Janela voltada para <select id="ori"><option value="N">Norte</option><option value="L">Leste</option><option value="S">Sul</option><option value="O">Oeste</option></select></label>
+ <canvas id="sp" width="520" height="150" style="width:100%;margin:6px 0"></canvas>
+ <div class="mu sm">Trajetória do sol (altura × hora): <span style="color:#f87171">verão</span> · <span style="color:#ffc857">equinócio</span> · <span style="color:#60a5fa">inverno</span></div>
+ <div class="seg" style="margin-top:8px"><button id="bs">Prateleira de luz</button><button id="ba">Sensor fotoelétrico</button></div>
+ <h3 style="margin-top:12px">Ajustes</h3>
+ <label>Hora do dia <b id="vh"></b><input id="h" type="range" min="7" max="18" step=".5"></label>
+ <label>Abertura das persianas <b id="vb"></b><input id="b" type="range" min="0" max="100" step="5"></label>
+ <div id="lamps"></div>
+ <label>Superfícies da sala</label>
+ <div class="seg" id="refl"><button data-r=".25">Escuras</button><button data-r=".5">Médias</button><button data-r=".8">Claras</button></div>
+ <h3 style="margin-top:12px">Comparar configurações</h3>
+ <button id="save" style="width:100%">Salvar configuração atual</button>
+ <canvas id="ch" width="520" height="230"></canvas>
+ <div class="lg mu sm"><span><i style="background:#ffc857"></i>lux (÷1000)</span><span><i style="background:#60a5fa"></i>W (÷70)</span><span><i style="background:#f87171"></i>ofuscamento</span></div>
+ <h3 style="margin-top:12px">Aprenda</h3><div id="ln" class="mu sm"></div>
+ </details>
+ <p class="mu sm" style="margin:10px 0 0">⚠ Valores são <b>estimativas educacionais</b> de um modelo simplificado; não substituem medições nem normas.</p>
+</div>
+<div id="ov" class="on"><div class="card" id="card"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $=s=>document.querySelector(s),cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+const LOGO='data:image/png;base64,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';
+/* ====== ESTADO ====== */
+const S={hour:12,blinds:.5,refl:.5,l:{
+ ceil:{n:'Luminária de teto',on:true,i:.6,w:36,k:260,r:.9},
+ desk:{n:'Luminária de mesa',on:false,i:.8,w:12,k:420,r:.2},
+ floor:{n:'Luminária de pé',on:false,i:.6,w:20,k:120,r:1.2}}};
+for(const k in S.l)S.l[k].t='led';Object.assign(S,{city:'rio',day:'eq',orient:'N',sky:'claro',shelf:0,auto:0});
+const LT={inc:{n:'Incandescente',e:12,irc:100,h:1000,c:0xffc27a},hal:{n:'Halógena',e:20,irc:100,h:3000,c:0xffd6a0},flu:{n:'Fluorescente',e:65,irc:80,h:9000,c:0xfff0d8},led:{n:'LED',e:100,irc:85,h:25000,c:0xfff4e0}};
+const CITY={rio:{n:'Rio de Janeiro',lat:-22.9},man:{n:'Manaus',lat:-3.1},rec:{n:'Recife',lat:-8.05},pal:{n:'Palmas',lat:-10.2}};
+const DAY={sum:{n:'Solstício de verão (22 dez)',d:-23.4},eq:{n:'Equinócio (21 mar/set)',d:0},win:{n:'Solstício de inverno (22 jun)',d:23.4}};
+const ORI={N:0,L:90,S:180,O:270},EXT={claro:50000,parcial:16000,enc:5000};
+function sunPos(){const r=Math.PI/180,ph=CITY[S.city].lat*r,de=DAY[S.day].d*r,H=(S.hour-12)*15*r,sa=Math.sin(ph)*Math.sin(de)+Math.cos(ph)*Math.cos(de)*Math.cos(H),alt=Math.asin(cl(sa,-1,1));let A=Math.acos(cl((Math.sin(de)-sa*Math.sin(ph))/((Math.cos(alt)*Math.cos(ph))||1e-6),-1,1));if(H>0)A=2*Math.PI-A;const th=A-ORI[S.orient]*r;return{alt,az:A,th,inc:Math.cos(th)*Math.cos(alt)}}
+/* ====== MODELO SIMPLIFICADO (estimativas educacionais) ====== */
+function calc(){
+ const f=.8+.5*S.refl,P=sunPos(),sun=Math.max(0,Math.sin(P.alt)),o=S.blinds,Ee=EXT[S.sky],dfr={claro:.7,parcial:.3,enc:0}[S.sky],dirE=Ee*dfr*(P.alt>0?1:0),inc=Math.max(0,P.inc),sh=1+.15*S.shelf;
+ let art=0,room=0,w=0;
+ for(const k in S.l){const L=S.l[k];if(L.on){art+=L.i*L.k;room+=L.i*L.k*L.r;w+=L.i*L.w*100/LT[L.t].e}}
+ const dif=Ee*(1-dfr)*.016*(.05+.95*o)*sh,dir=dirE*inc*.012*o*sh,nat=dif+dir,lux=(art+nat)*f,rm=(room+nat*.5)*f,fld=1.6*(.05+.95*o)*sh*f;
+ let g=o*(dirE*inc/430+10+25*Ee/50000)*(1-.35*S.shelf);
+ if(S.l.desk.on&&S.l.desk.i>.8)g+=10*(S.l.desk.i-.8)/.2;
+ return{lux:Math.round(lux),w:Math.round(w),g:Math.round(cl(g,0,100)),
+  u:lux>1?Math.min(rm,lux)/Math.max(rm,lux):0,kwh:w*8*22/1000,sun,P,fld,Ee,lum:Math.round(.8*lux/Math.PI),irc:Math.min(100,...Object.values(S.l).filter(L=>L.on).map(L=>LT[L.t].irc)),nat:nat*f,art:art*f};
+}
+/* ====== CENA ====== */
+const cv=$('#c'),R=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+R.setPixelRatio(Math.min(devicePixelRatio,2));R.shadowMap.enabled=true;R.shadowMap.type=THREE.PCFSoftShadowMap;
+R.outputEncoding=THREE.sRGBEncoding;R.toneMapping=THREE.ACESFilmicToneMapping;
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x1a2030);
+const cam=new THREE.PerspectiveCamera(72,1,.05,80);cam.rotation.order='YXZ';cam.position.set(0,1.65,2);
+const M=(c,r=.8,m=0)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});
+const targets=[],col=[];
+function box(w,h,d,mat,x,y,z,cs=1){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);m.castShadow=!!cs;m.receiveShadow=true;scene.add(m);return m}
+function cyl(rt,rb,h,mat,x,y,z,seg=20){const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg),mat);m.position.set(x,y,z);m.castShadow=true;scene.add(m);return m}
+const wallM=M(0xdedad0,.95),ceilM=M(0xf2f2f2,.95),floorM=M(0x8a6a4a,.7),wood=M(0x9b7653,.6),dark=M(0x23262d,.5,.4),white=M(0xf5f5f5,.5);
+// sala
+box(8,.1,6,floorM,0,-.05,0,0);box(8.4,.1,6.4,ceilM,0,3.05,0,0);
+box(8.4,3,.2,wallM,0,1.5,3.1,0);box(.2,3,6.4,wallM,-4.1,1.5,0,0);box(.2,3,6.4,wallM,4.1,1.5,0,0);
+box(4,3,.2,wallM,-2,1.5,-3.1,0);box(1,3,.2,wallM,3.5,1.5,-3.1,0);box(3,.9,.2,wallM,1.5,.45,-3.1,0);box(3,.6,.2,wallM,1.5,2.7,-3.1,0);
+// janela: moldura, vidro, persianas
+[[3.1,.07,1.5,.9],[3.1,.07,1.5,2.4],[.07,1.5,0,1.65],[.07,1.5,3,1.65],[.05,1.5,1.5,1.65]].forEach(a=>box(a[0],a[1],.1,white,a[2],a[3],-3.02,0));
+const glass=new THREE.Mesh(new THREE.PlaneGeometry(3,1.5),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.05,depthWrite:false}));
+glass.position.set(1.5,1.65,-3);glass.userData.k='blinds';scene.add(glass);targets.push(glass);
+const slats=[];for(let i=0;i<12;i++){const s=box(2.96,.118,.04,M(0xcfd3da,.5),1.5,2.4-(i+.5)*.125,-2.93,0);s.userData.k='blinds';slats.push(s);targets.push(s)}
+const wand=cyl(.015,.015,.8,dark,3.3,1.8,-2.9,8);wand.userData.k='blinds';targets.push(wand);
+// exterior
+const skyM=new THREE.MeshBasicMaterial({color:0x8ec9ff});const sky=new THREE.Mesh(new THREE.PlaneGeometry(40,18),skyM);sky.position.set(0,6,-14);scene.add(sky);
+const sunDisc=new THREE.Mesh(new THREE.SphereGeometry(1.1,16,12),new THREE.MeshBasicMaterial({color:0xfff6c8}));scene.add(sunDisc);
+const skyCloud=[[-6,8],[0,10],[6,7],[-11,6],[10,10]].map((p,i)=>{const c=new THREE.Mesh(new THREE.SphereGeometry(1,10,8),new THREE.MeshBasicMaterial({color:0xffffff}));c.scale.set(3.2,.9,1);c.position.set(p[0],p[1],-12.5);c.userData.k=i%2;scene.add(c);return c});
+const shelfM=box(3.1,.05,.8,white,1.5,1.95,-3.4,0);
+const gr=new THREE.Mesh(new THREE.PlaneGeometry(40,20),M(0x4c8a45,1));gr.rotation.x=-Math.PI/2;gr.position.set(0,-.05,-13);gr.receiveShadow=true;scene.add(gr);
+[[-1,-8],[3,-9],[6,-7.5],[-5,-10]].forEach(p=>{cyl(.12,.15,1.6,M(0x5b4030),p[0],.8,p[1],8);const t=new THREE.Mesh(new THREE.IcosahedronGeometry(1.1,1),M(0x2f7a3a,1));t.position.set(p[0],2.3,p[1]);scene.add(t)});
+// mesa de estudos
+box(2,.06,.9,wood,-1.2,.75,-2,1);[[-2.1,-2.4],[-.3,-2.4],[-2.1,-1.6],[-.3,-1.6]].forEach(p=>box(.05,.75,.05,dark,p[0],.375,p[1]));
+box(.5,.03,.25,dark,-1.2,.78,-2.3);box(.06,.2,.06,dark,-1.2,.88,-2.3);
+box(.62,.36,.03,dark,-1.2,1.1,-2.3);
+const scr=new THREE.Mesh(new THREE.PlaneGeometry(.57,.31),new THREE.MeshStandardMaterial({color:0x111418,emissive:0x4a90e2,emissiveIntensity:.55,roughness:.2}));scr.position.set(-1.2,1.1,-2.283);scene.add(scr);
+box(.42,.015,.14,dark,-1.2,.775,-1.85);
+const lxC=document.createElement('canvas');lxC.width=128;lxC.height=64;const lxT=new THREE.CanvasTexture(lxC);box(.1,.03,.16,dark,-.95,.795,-1.85);
+const lxS=new THREE.Mesh(new THREE.PlaneGeometry(.08,.04),new THREE.MeshBasicMaterial({map:lxT}));lxS.rotation.x=-Math.PI/2;lxS.position.set(-.95,.812,-1.85);scene.add(lxS);
+function lxDraw(v){const x=lxC.getContext('2d');x.fillStyle='#9bd68b';x.fillRect(0,0,128,64);x.fillStyle='#142';x.font='bold 34px monospace';x.textAlign='center';x.fillText(v,64,44);lxT.needsUpdate=true}
+const sheet=box(.42,.004,.3,white,-1.2,.783,-2.0,0);box(.07,.03,.1,M(0xe94f37),-1.45,.795,-2.0);
+// cadeira
+box(.5,.06,.5,M(0x2b5d9e),-1.2,.5,-1.0);box(.5,.55,.06,M(0x2b5d9e),-1.2,.82,-.75);cyl(.03,.03,.45,dark,-1.2,.25,-1.0,8);cyl(.28,.28,.03,dark,-1.2,.03,-1.0,16);
+// luminária de mesa
+const dlBase=cyl(.08,.1,.03,dark,-2,.795,-2.25,16);dlBase.userData.k='desk';
+const dlArm=box(.02,.38,.02,dark,-2,.99,-2.25);dlArm.rotation.z=-.15;dlArm.userData.k='desk';
+const dlMat=new THREE.MeshStandardMaterial({color:0xffe9b0,emissive:0xffd890,emissiveIntensity:0});
+const dlShade=new THREE.Mesh(new THREE.ConeGeometry(.12,.14,20,1,true),M(0xf0a020,.4));dlShade.position.set(-1.93,1.2,-2.2);dlShade.rotation.z=-.5;dlShade.rotation.x=.3;dlShade.userData.k='desk';scene.add(dlShade);targets.push(dlBase,dlArm,dlShade);
+const dlBulb=new THREE.Mesh(new THREE.SphereGeometry(.035,10,10),dlMat);dlBulb.position.set(-1.94,1.17,-2.19);scene.add(dlBulb);
+// luminária de pé
+const flPole=cyl(.02,.02,1.6,dark,-3.3,.8,-1.2,8),flBase=cyl(.14,.16,.03,dark,-3.3,.02,-1.2,16);
+const flMat=new THREE.MeshStandardMaterial({color:0xfff2d6,emissive:0xffd890,emissiveIntensity:0,side:THREE.DoubleSide,transparent:true,opacity:.92});
+const flShade=new THREE.Mesh(new THREE.CylinderGeometry(.2,.28,.38,24,1,true),flMat);flShade.position.set(-3.3,1.75,-1.2);scene.add(flShade);
+[flPole,flBase,flShade].forEach(m=>{m.userData.k='floor';targets.push(m)});
+// luminária de teto
+const ceMat=new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xfff0d0,emissiveIntensity:0});
+const cePanel=new THREE.Mesh(new THREE.BoxGeometry(1.6,.06,.6),ceMat);cePanel.position.set(0,3,0);cePanel.userData.k='ceil';scene.add(cePanel);targets.push(cePanel);
+// bancada, estante, planta, tapete, quadro
+// quarto: cama, criado-mudo, guarda-roupa, cortinas
+box(2.1,.25,1.7,wood,2.95,.2,1.2);box(2,.3,1.6,M(0xe9e4da,.95),2.95,.47,1.2);box(.1,.9,1.7,wood,3.95,.7,1.2);
+box(1.3,.1,1.62,M(0x3f6f9e,.9),2.5,.64,1.2);[.65,1.75].forEach(z=>box(.35,.12,.5,white,3.6,.69,z));
+box(.45,.5,.4,wood,3.75,.25,-.1);box(.12,.08,.1,M(0xd33333),3.75,.54,-.1);
+box(1.6,2.2,.55,wood,-2.2,1.1,2.7);box(.02,1.9,.01,dark,-2.2,1.1,2.42,0);
+[-.1,3.1].forEach(x=>box(.35,1.9,.08,M(0xa8504a,.95),x,1.55,-2.9,0));
+box(.4,2.2,1.6,M(0xb89468),-3.85,1.1,1,1);for(let r=0;r<4;r++)for(let i=0;i<9;i++)box(.2,.28,.05,M(new THREE.Color().setHSL(Math.random(),.5,.5)),-3.8,.35+r*.5,.3+i*.15,0);
+cyl(.2,.15,.35,M(0xc06a3a),3.3,.18,-2.4);[0,1,2].forEach(i=>{const l=new THREE.Mesh(new THREE.IcosahedronGeometry(.28-i*.04,1),M(0x2e8b3c,1));l.position.set(3.3+i*.04,.55+i*.25,-2.4);l.castShadow=true;scene.add(l)});
+const rug=new THREE.Mesh(new THREE.PlaneGeometry(3,2.2),M(0x394a6b,1));rug.rotation.x=-Math.PI/2;rug.position.set(0,.01,.2);rug.receiveShadow=true;scene.add(rug);
+{const c2=document.createElement('canvas');c2.width=512;c2.height=280;const x=c2.getContext('2d');x.fillStyle='#f4f6f8';x.fillRect(0,0,512,280);x.fillStyle='#223';x.font='bold 34px system-ui';x.fillText('Iluminância',24,56);x.font='28px system-ui';x.fillText('E = Φ / A   (lux = lm/m²)',24,110);x.fillStyle='#c0392b';x.fillText('Leitura/escrita ≈ 500 lx',24,170);x.fillStyle='#1b6aa5';x.fillText('Evite ofuscamento!',24,226);
+ const t=new THREE.CanvasTexture(c2);const b=new THREE.Mesh(new THREE.PlaneGeometry(2,1.09),new THREE.MeshStandardMaterial({map:t,roughness:.4}));b.rotation.y=Math.PI/2;b.position.set(-3.98,1.8,-.9);scene.add(b)}
+// quadro com a logo da UVA
+box(.95,.95,.05,M(0x4a3524,.6),-1.2,1.95,-2.97);
+const logoT=new THREE.TextureLoader().load(LOGO);logoT.encoding=THREE.sRGBEncoding;
+const logoM=new THREE.Mesh(new THREE.PlaneGeometry(.82,.82),new THREE.MeshStandardMaterial({map:logoT,emissiveMap:logoT,emissive:0xffffff,emissiveIntensity:.3,roughness:.6}));logoM.position.set(-1.2,1.95,-2.94);scene.add(logoM);
+// painel da parede: cartões interativos (E para mudar)
+const labs={};
+function mkLab(k,x){const c=document.createElement('canvas');c.width=c.height=160;const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;const m=new THREE.Mesh(new THREE.PlaneGeometry(.36,.36),new THREE.MeshBasicMaterial({map:t}));m.position.set(x,2.25,-2.97);m.userData.k=k;scene.add(m);targets.push(m);labs[k]={x:c.getContext('2d'),t}}
+function labDraw(k,a,b){const L=labs[k],x=L.x;L.a=a;L.b=b;x.fillStyle='#f4efe4';x.fillRect(0,0,160,160);x.strokeStyle='#5b4030';x.lineWidth=10;x.strokeRect(5,5,150,150);x.fillStyle='#5b4030';x.textAlign='center';x.font='bold 24px system-ui';x.fillText(a,80,44);x.fillStyle='#1b2a52';x.font='bold 34px system-ui';x.fillText(b,80,106);L.t.needsUpdate=true}
+[['hora',-3.75],['data',-3.35],['cidade',-2.95],['janela',-2.55],['ceu',-2.15]].forEach(a=>mkLab(a[0],a[1]));
+// luzes
+const hemi=new THREE.HemisphereLight(0xdfe9ff,0x6b5a48,.2);scene.add(hemi);
+const sunL=new THREE.DirectionalLight(0xfff3e0,1);sunL.castShadow=true;sunL.shadow.mapSize.set(1024,1024);
+Object.assign(sunL.shadow.camera,{left:-6,right:6,top:6,bottom:-6,near:1,far:30});sunL.shadow.bias=-.0006;sunL.target.position.set(0,0,0);scene.add(sunL,sunL.target);
+const ceL=new THREE.PointLight(0xfff4e0,0,13,1.2);ceL.position.set(0,2.7,0);scene.add(ceL);
+const dkL=new THREE.SpotLight(0xffe2b0,0,9,.85,.5,1.2);dkL.position.set(-1.93,1.17,-2.19);dkL.target.position.set(-1.2,.76,-1.85);scene.add(dkL,dkL.target);
+const flL=new THREE.PointLight(0xffe0b0,0,10,1.3);flL.position.set(-3.3,1.9,-1.2);scene.add(flL);
+// colisão
+const COL=[[-2.4,0,-2.8,-1.3],[1.9,4,.35,2.05],[-3,-1.4,2.4,3],[3.5,4,-.3,.1],[-4,-3.4,.1,1.9],[-3.55,-3.05,-1.45,-.95],[3,3.6,-2.8,-2.1]];
+/* ====== APLICAR ESTADO À CENA ====== */
+const cWall=[new THREE.Color(0x3d424d),new THREE.Color(0xf4f1ea)];
+let cur=null;
+function apply(){
+ cur=calc();const k=(S.refl-.25)/.55;
+ wallM.color.copy(cWall[0]).lerp(cWall[1],k);ceilM.color.copy(cWall[0]).lerp(cWall[1],.3+k*.7);
+ const o=S.blinds,sun=cur.sun,n=Math.round((1-o)*12);slats.forEach((s,i)=>s.visible=i<n);
+ const P=cur.P,dv=new THREE.Vector3(Math.sin(P.th)*Math.cos(P.alt),Math.sin(P.alt),-Math.cos(P.th)*Math.cos(P.alt));sunL.position.copy(dv).multiplyScalar(14).add(new THREE.Vector3(1.5,1.6,0));sunL.target.position.set(1.5,.8,0);sunDisc.position.copy(dv).multiplyScalar(13);sunDisc.visible=P.alt>.02&&S.sky!='enc';skyCloud.forEach(c=>c.visible=S.sky=='enc'||(S.sky=='parcial'&&!!c.userData.k));shelfM.visible=!!S.shelf;
+ sunL.intensity=2.4*({claro:1,parcial:.45,enc:0}[S.sky])*Math.min(1,Math.max(0,P.inc)*2)*(.05+.95*o);sunL.color.setHSL(.09,.15+.6*(1-sun),.88);
+ skyM.color.set(0x8ec9ff).lerp(new THREE.Color(0xff9a5a),(1-sun)*.6).multiplyScalar(.45+.55*Math.sqrt(sun));if(S.sky!='claro')skyM.color.lerp(new THREE.Color(0xb8bec6),S.sky=='enc'?.8:.4);
+ const L=S.l;const e=x=>x.on?x.i:0;
+ ceL.intensity=e(L.ceil)*1.4;dkL.intensity=e(L.desk)*2.4;flL.intensity=e(L.floor)*1.1;
+ ceL.color.setHex(LT[L.ceil.t].c);dkL.color.setHex(LT[L.desk.t].c);flL.color.setHex(LT[L.floor.t].c);ceMat.emissiveIntensity=e(L.ceil)*1.6;dlMat.emissiveIntensity=e(L.desk)*2;flMat.emissiveIntensity=e(L.floor)*1.2;
+ hemi.intensity=.08+.5*Math.min(1,(cur.nat*.5+cur.art*.4)/500)*(.4+S.refl);
+ sync();
+}
+/* ====== UI ====== */
+const lampsEl=$('#lamps');
+Object.keys(S.l).forEach(k=>{const d=document.createElement('div');d.className='lamp';d.innerHTML=`<button data-k="${k}">${S.l[k].n.replace('Luminária de ','Lum. ')}</button><input type="range" min="5" max="100" step="5" data-k="${k}"><select data-k="${k}" data-t="1" style="grid-column:1/3">${Object.keys(LT).map(t=>`<option value="${t}">${LT[t].n} · ${LT[t].e} lm/W · ${LT[t].h} h</option>`).join('')}</select>`;lampsEl.append(d)});
+lampsEl.addEventListener('click',e=>{const k=e.target.dataset.k;if(k&&e.target.tagName=='BUTTON'){S.l[k].on=!S.l[k].on;apply()}});
+lampsEl.addEventListener('input',e=>{const k=e.target.dataset.k;if(k&&e.target.type=='range'){S.l[k].i=e.target.value/100;S.l[k].on=true;apply()}});
+$('#h').oninput=e=>{S.hour=+e.target.value;apply()};$('#b').oninput=e=>{S.blinds=e.target.value/100;apply()};
+$('#refl').onclick=e=>{if(e.target.dataset.r){S.refl=+e.target.dataset.r;apply()}};
+lampsEl.addEventListener('change',e=>{if(e.target.dataset.t){S.l[e.target.dataset.k].t=e.target.value;apply()}});
+[['city',CITY],['day',DAY]].forEach(a=>{$('#'+a[0]).innerHTML=Object.keys(a[1]).map(k=>`<option value="${k}">${a[1][k].n}</option>`).join('')});
+['city','day','sky','ori'].forEach(id=>$('#'+id).onchange=e=>{S[id=='ori'?'orient':id]=e.target.value;apply()});
+$('#bs').onclick=()=>{S.shelf=1-S.shelf;apply()};$('#ba').onclick=()=>{S.auto=1-S.auto;apply()};
+function drawSun(){const c=$('#sp').getContext('2d'),W=520,H=150,r=Math.PI/180,ph=CITY[S.city].lat*r,col={sum:'#f87171',eq:'#ffc857',win:'#60a5fa'},Y=a=>H-18-Math.max(0,a)/(Math.PI/2)*(H-30);c.clearRect(0,0,W,H);
+ Object.keys(DAY).forEach(k=>{c.strokeStyle=col[k];c.lineWidth=k==S.day?4:1.5;c.beginPath();for(let h=6;h<=18;h+=.25){const de=DAY[k].d*r,a=Math.asin(Math.sin(ph)*Math.sin(de)+Math.cos(ph)*Math.cos(de)*Math.cos((h-12)*15*r)),x=(h-6)/12*W;h==6?c.moveTo(x,Y(a)):c.lineTo(x,Y(a))}c.stroke()});
+ c.fillStyle='#fff';c.beginPath();c.arc((S.hour-6)/12*W,Y(cur.P.alt),7,0,7);c.fill();c.fillStyle='#9aa6c4';c.font='13px system-ui';c.fillText('6h',2,H-4);c.fillText('12h',W/2-10,H-4);c.fillText('18h',W-28,H-4)}
+function info(m){const K=48/(2.2*14),U=({.25:.45,.5:.55,.8:.62})[S.refl]||.55,N=Math.ceil(500*48/(3600*U*.8));$('#ln').innerHTML=`<b>Luz natural:</b> FLD ≈ ${m.fld.toFixed(1)}% (Ei/Ee×100) · Eext ≈ ${m.Ee} lx · sol a ${Math.round(m.P.alt*57.3)}° de altura, incidência na janela ${Math.round(Math.max(0,m.P.inc)*100)}%<br><b>Superfícies:</b> paredes ${Math.round(S.refl*100)}% (ISO 8995-1: 30–80%) · luminância do papel ≈ ${m.lum} cd/m² (L=ρE/π)<br><b>Lâmpadas:</b> IRC mínimo aceso: ${m.irc}<br><b>Método dos lúmens (sala 8×6 m):</b> K=${K.toFixed(2)}, U≈${U}, FPL=0,8 → ≈${N} luminárias de 3600 lm para 500 lx médios`}
+document.addEventListener('change',e=>{if(e.target.type=='range')e.target.blur()});
+const fmtH=h=>String(Math.floor(h)).padStart(2,'0')+':'+(h%1?'30':'00');
+function sync(){
+ const m=cur;$('#mL').textContent=m.lux+' lx · '+(m.lux<500?'baixa':m.lux<=800?'adequada':'alta');$('#bL').style.width=Math.min(100,m.lux/10)+'%';
+ $('#bL').style.background=m.lux<500?'var(--ac)':m.lux<=800?'var(--ok)':'var(--bl)';
+ $('#mW').textContent=m.w+' W';$('#bW').style.width=Math.min(100,m.w/68*100)+'%';
+ $('#mG').textContent=m.g+'/100 · '+(m.g<40?'confortável':'ofuscando');$('#bG').style.width=m.g+'%';$('#bG').style.background=m.g<40?'var(--ok)':'var(--bad)';
+ $('#mU').textContent=Math.round(m.u*100)+'%';
+ $('#mK').textContent=`Natural ≈ ${Math.round(m.nat)} lx · Artificial ≈ ${Math.round(m.art)} lx · ≈ ${m.kwh.toFixed(1)} kWh/mês (8 h/dia)`;
+ lxDraw(m.lux);labDraw('hora','HORA',fmtH(S.hour));labDraw('data','DATA',{sum:'22 dez',eq:'21 mar',win:'22 jun'}[S.day]);labDraw('cidade','CIDADE',{rio:'Rio',man:'Manaus',rec:'Recife',pal:'Palmas'}[S.city]);labDraw('janela','JANELA',{N:'Norte',L:'Leste',S:'Sul',O:'Oeste'}[S.orient]);labDraw('ceu','CÉU',{claro:'Claro',parcial:'Parcial',enc:'Encob.'}[S.sky]);['city','day','sky'].forEach(id=>$('#'+id).value=S[id]);$('#ori').value=S.orient;$('#bs').className=S.shelf?'on':'';$('#ba').className=S.auto?'on':'';drawSun();info(m);
+ $('#h').value=S.hour;$('#vh').textContent=fmtH(S.hour);$('#b').value=S.blinds*100;$('#vb').textContent=Math.round(S.blinds*100)+'%';
+ lampsEl.querySelectorAll('.lamp').forEach(d=>{const k=d.firstChild.dataset.k,L=S.l[k];d.firstChild.className=L.on?'on':'';d.children[1].value=L.i*100;d.children[2].value=L.t});
+ document.querySelectorAll('#refl button').forEach(b=>b.className=+b.dataset.r==S.refl?'on':'');
+ drawChart($('#ch'),[{n:'Atual',lux:m.lux,w:m.w,g:m.g},...snaps]);
+}
+const snaps=[];
+$('#save').onclick=()=>{const m=calc();snaps.push({n:'Cfg '+(snapN=(window.snapN||0)+1),lux:m.lux,w:m.w,g:m.g});window.snapN=snapN;if(snaps.length>3)snaps.shift();sync()};
+let snapN=0;
+function drawChart(cv,data){
+ const c=cv.getContext('2d'),W=cv.width,H=cv.height,gh=H-30,gw=W/data.length;c.clearRect(0,0,W,H);
+ const S2=[['lux',1000,'#ffc857'],['w',70,'#60a5fa'],['g',100,'#f87171']];
+ c.strokeStyle='rgba(255,255,255,.25)';c.setLineDash([5,4]);const ty=gh-.5*(gh-16);c.beginPath();c.moveTo(0,ty);c.lineTo(W,ty);c.stroke();c.setLineDash([]);
+ c.font='13px system-ui';c.textAlign='center';c.fillStyle='#9aa6c4';c.textAlign='left';c.fillText('500 lx',3,ty-4);c.textAlign='center';
+ data.forEach((d,i)=>{const x0=i*gw+gw*.1,bw=gw*.8/3;S2.forEach((s,j)=>{const h=Math.min(1,d[s[0]]/s[1])*(gh-16);c.fillStyle=s[2];c.fillRect(x0+j*bw,gh-h,bw-4,h);c.fillStyle='#e8ecf8';c.fillText(Math.round(d[s[0]]),x0+j*bw+bw/2-2,gh-h-4)});
+  c.fillStyle='#9aa6c4';c.fillText(d.n,i*gw+gw/2,H-8)});
+}
+/* ====== MISSÕES ====== */
+const set=(k,on,i)=>{S.l[k].on=!!on;S.l[k].i=i};
+const MS=[
+{t:'Mesa de estudos',d:'A mesa está escura. Alcance uma iluminância adequada para leitura e escrita, sem criar ofuscamento.',
+ s(){S.hour=10;S.blinds=.2;set('ceil',1,.35);set('desk',0,.6);set('floor',0,.5)},
+ g:[['Iluminância entre 500 e 800 lx',m=>m.lux>=500&&m.lux<=800],['Ofuscamento abaixo de 40',m=>m.g<40]],
+ tip:'Dica: luz de tarefa (luminária de mesa) complementa a luz geral.',
+ L:'Tarefas de leitura e escrita pedem cerca de 500 lx no plano de trabalho (referência: NBR ISO/CIE 8995-1). Luz de tarefa direcionada eleva a iluminância onde ela é necessária.'},
+{t:'Fim de tarde ofuscante',d:'O sol baixo entra pela janela e ofusca. Reduza o ofuscamento sem deixar a mesa no escuro.',
+ s(){S.hour=16.5;S.blinds=1;S.orient='O';set('ceil',1,.5);set('desk',0,.6);set('floor',0,.5)},
+ g:[['Ofuscamento até 25',m=>m.g<=25],['Iluminância mínima de 300 lx',m=>m.lux>=300]],
+ tip:'Dica: persianas controlam a luz natural direta; compense com luz artificial.',
+ L:'Sol baixo produz ofuscamento forte. Persianas e anteparos reduzem o brilho excessivo e o contraste; a luz artificial compensa a perda de luz natural.'},
+{t:'Economia de energia',d:'Todas as luminárias estão acesas. Mantenha iluminação adequada gastando o mínimo de energia.',
+ s(){S.hour=12;S.blinds=.1;set('ceil',1,1);set('desk',1,1);set('floor',1,1)},
+ g:[['Iluminância de 500 lx ou mais',m=>m.lux>=500],['Ofuscamento abaixo de 40',m=>m.g<40],['Potência até 18 W',m=>m.w<=18]],
+ tip:'Dica: ao meio-dia a luz natural é abundante. Aproveite-a e apague o que não precisa.',
+ L:'Aproveitar a luz natural (com controle de ofuscamento) e usar luz de tarefa em vez de iluminar toda a sala reduz muito o consumo.'},
+{t:'Sol e orientação',d:'Janela voltada para o oeste, sol baixo de verão no Rio. Evite o ofuscamento sem fechar as persianas: gire a JANELA no painel da parede (E) ou ligue a prateleira de luz nos controles avançados.',
+ s(){S.hour=16;S.day='sum';S.orient='O';S.blinds=1;set('ceil',1,.4);set('desk',0,.6);set('floor',0,.5)},
+ g:[['Ofuscamento abaixo de 30',m=>m.g<30],['Persianas pelo menos 50% abertas',m=>S.blinds>=.5]],
+ tip:'Dica: ao sul do equador a fachada norte recebe mais luz; leste e oeste pegam sol baixo.',
+ L:'A orientação da abertura define quando e como o sol entra. Prateleiras de luz e brises protegem do ofuscamento e distribuem a luz no fundo da sala (estratégias de proteção e distribuição).'},
+{t:'Escolha da lâmpada',d:'Céu encoberto e lâmpadas incandescentes. Troque os tipos para atingir 500 lx com baixo consumo e boa durabilidade.',
+ s(){S.hour=11;S.sky='enc';S.blinds=.5;for(const k in S.l)S.l[k].t='inc';set('ceil',1,.6);set('desk',1,.6);set('floor',0,.5)},
+ g:[['Iluminância de 500 lx ou mais',m=>m.lux>=500],['Potência até 30 W',m=>m.w<=30],['Vida útil de 9.000 h ou mais nas lâmpadas acesas',m=>Object.values(S.l).every(L=>!L.on||LT[L.t].h>=9000)]],
+ tip:'Dica: compare lm/W. Incandescente 10–15; fluorescente 55–75; LED cerca de 100.',
+ L:'Eficiência luminosa (lm/W), vida útil e IRC orientam a escolha. LED e fluorescente entregam o mesmo fluxo com muito menos potência que incandescentes e halógenas.'}];
+const G={i:-1,hold:0,t0:0,res:[],run:false};
+function renderMis(){
+ const m=cur||calc();let h='<h3>Missões</h3>';
+ MS.forEach((x,i)=>{const dn=G.res[i];h+=`<div class="mi ${dn?'dn':i==G.i?'cur':''}"><i>${dn?'✓':i+1}</i><div><b>${x.t}</b>${dn?`<div class="mu sm">+${dn.score} pts</div>`:''}</div></div>`});
+ if(G.i>=0&&G.i<MS.length&&!G.res[G.i]){const x=MS[G.i];h+=`<p class="mu" style="margin:8px 0 4px">${x.d}</p>`;
+  x.g.forEach(g=>h+=`<div class="goal ${g[1](m)?'y':''}">${g[1](m)?'✔':'○'} ${g[0]}</div>`);
+  h+=`<div class="bar" style="margin-top:8px"><i style="width:${G.hold/2.5*100}%;background:var(--ok)"></i></div><div class="mu sm">Mantenha as metas por 2,5 s. ${x.tip}</div>`}
+ h+=`<p class="mu sm" style="margin:8px 0 0">Pontos: <b style="color:var(--ac)">${G.res.reduce((a,r)=>a+r.score,0)}</b></p>`;
+ $('#mis').innerHTML=h;
+}
+function startMission(i){G.i=i;G.hold=0;Object.assign(S,{city:'rio',day:'eq',sky:'claro',orient:'N',shelf:0,auto:0,refl:.5});for(const k in S.l)S.l[k].t='led';MS[i].s();G.t0=performance.now();apply();renderMis();overlay(false)}
+function finish(){
+ const m=calc(),x=MS[G.i],time=(performance.now()-G.t0)/1000,tb=Math.round(Math.max(0,1-time/90)*50),eb=Math.round(Math.max(0,1-m.w/40)*50),score=100+tb+eb;
+ G.res[G.i]={n:'M'+(G.i+1),lux:m.lux,w:m.w,g:m.g,score,time};renderMis();
+ const last=G.i==MS.length-1;
+ overlay(true,`<h2>Missão concluída: ${x.t}</h2><p><b style="color:var(--ac);font-size:22px">+${score} pontos</b><br><span class="mu">Base 100 + rapidez ${tb} + eficiência energética ${eb}</span></p>
+ <p>${m.lux} lx · ${m.w} W · ofuscamento ${m.g} · ${time.toFixed(0)} s</p><p><b>O que você aprendeu:</b> ${x.L}</p>
+ <button class="pr" id="nx">Fazer o quiz (4 perguntas)</button>`);
+ $('#nx').onclick=()=>quiz(G.i,()=>last?results():startMission(G.i+1));
+}
+const QZ=[
+[['Qual é a unidade de iluminância?',['Lúmen (lm)','Lux (lx)','Candela (cd)','Watt (W)'],1,'Iluminância é a luz que chega a uma superfície: 1 lux = 1 lúmen/m². O lúmen mede o fluxo da fonte; a candela, a intensidade.'],
+['Qual iluminância se recomenda, em média, para leitura e escrita?',['100 lx','200 lx','500 lx','5.000 lx'],2,'Tarefas de leitura e escrita pedem cerca de 500 lx no plano de trabalho (ISO 8995-1).'],
+['Qual aparelho mede a iluminância?',['Luxímetro','Termômetro','Espectrômetro','Anemômetro'],0,'O luxímetro mede lux. O luminacímetro mede luminância, que é a luz refletida na direção do olho.'],
+['Para que serve a luz de tarefa (luminária de mesa)?',['Gastar mais energia','Aumentar a luz só onde a tarefa acontece','Eliminar a luz natural','Baixar o IRC'],1,'Ela complementa a luz geral com mais iluminância no ponto de trabalho, sem iluminar a sala toda.']],
+[['O que é ofuscamento?',['Falta de luz no ambiente','Contraste excessivo de luminância que causa desconforto','Excesso de cores na sala','Lâmpada com IRC baixo'],1,'Ele decorre de contraste excessivo entre áreas muito claras e o entorno.'],
+['Por que a janela a oeste ofusca no fim da tarde?',['O sol baixo entra na altura dos olhos e cria luminâncias altíssimas','O vidro absorve toda a luz','O piso reflete 100%','A luz é infravermelha'],0,'Com o sol baixo, a luz direta chega quase horizontal, na linha de visão.'],
+['Qual destas ajuda a proteger do ofuscamento?',['Persianas, brises e prateleiras de luz','Aumentar a potência das lâmpadas','Pintar o teto de preto','Tirar as cortinas'],0,'Proteção solar impede ou reduz a radiação que traz desconforto.'],
+['Segundo a aula, o ofuscamento em ambientes de trabalho...',['É aceitável se a luz for natural','Sempre deve ser evitado','Só importa à noite','Só ocorre com incandescentes'],1,'Em ambientes de trabalho o ofuscamento deve sempre ser evitado.']],
+[['Eficiência luminosa (lm/W) é...',['Fluxo emitido ÷ potência consumida','Potência ÷ fluxo','Lux ÷ área','Intensidade ÷ distância'],0,'Quanto mais lúmens por watt, mais luz você ganha para cada unidade de energia.'],
+['Para a mesma luz, qual lâmpada consome menos?',['Incandescente','Halógena','LED','Todas iguais'],2,'LED chega perto de 100 lm/W; a incandescente fica em 10 a 15 lm/W.'],
+['Por que a luz natural ajuda a economizar?',['Substitui parte da luz artificial, se o ofuscamento for controlado','O sol não emite luz visível','Ela desliga a energia','Não ajuda'],0,'Aproveitar o dia reduz as horas de lâmpada acesa, mas exige controle de ofuscamento e calor.'],
+['O LED, comparado à incandescente, tem...',['Mais calor','Vida útil muito maior (cerca de 25.000 a 50.000 h contra 1.000 h)','Sempre IRC 100','Consumo maior'],1,'Menos troca de lâmpada e menos energia.']],
+[['No Brasil (sul do equador), qual fachada recebe mais luz?',['Norte','Sul','Todas igual','Nenhuma'],0,'Ao sul do equador, um ambiente voltado para o norte recebe mais luz que um voltado para o sul.'],
+['Por que o sol nasce e se põe em pontos diferentes ao longo do ano?',['Sazonalidade: a trajetória muda com a época e a latitude','Por causa do vidro','Por causa da Lua','Não muda'],0,'Latitude, época do ano, dia e hora definem a trajetória do sol.'],
+['O que é o FLD (fator de luz diurna)?',['Iluminância interna ÷ externa × 100 (%)','Potência ÷ área','Fluxo ÷ ângulo sólido','Refletância ÷ absortância'],0,'Ele compara a luz natural dentro do ambiente com a luz disponível fora.'],
+['Para que serve uma prateleira de luz?',['Refletir a luz para o fundo da sala e proteger perto da janela','Substituir as lâmpadas','Escurecer a sala','Aumentar o consumo'],0,'Ela melhora a distribuição da luz e reduz o ofuscamento junto à janela.']],
+[['O IRC mede...',['A fidelidade das cores sob a lâmpada, comparada à luz do sol (100)','A vida útil','A potência','A temperatura da sala'],0,'Quanto mais perto de 100, mais naturais parecem as cores.'],
+['Qual tipo tem a menor vida útil?',['Incandescente (cerca de 1.000 h)','LED','Fluorescente','Vapor de sódio'],0,'A incandescente dura cerca de 1.000 h; o LED, de 25.000 a 50.000 h.'],
+['Como as lâmpadas fluorescentes produzem luz?',['Corrente passa por um gás, sem filamento, com reator','Aquecem um filamento de tungstênio','Camadas de semicondutor','Sem eletricidade'],0,'São lâmpadas de descarga: o gás excitado emite radiação que o revestimento converte em luz.'],
+['Duas lâmpadas dão 1.200 lm: uma de 12 W e outra de 80 W. Qual é mais eficiente?',['A de 12 W (100 lm/W)','A de 80 W (15 lm/W)','Iguais','Depende da cor'],0,'Mesmo fluxo com menos potência significa maior lm/W.']]];
+function quiz(mi,done){let q=0,ok=0;const Q=QZ[mi];
+ const show=()=>{const t=Q[q];overlay(true,`<h3>Quiz · ${MS[mi].t} · ${q+1}/4</h3><p style="font-size:16px"><b>${t[0]}</b></p>${t[1].map((x,i)=>`<button class="qo" data-i="${i}" style="display:block;width:100%;text-align:left;margin:6px 0">${'ABCD'[i]}) ${x}</button>`).join('')}<div id="qf"></div>`);
+  document.querySelectorAll('.qo').forEach(b=>b.onclick=()=>{if($('#qn'))return;const i=+b.dataset.i,c=t[2];if(i==c)ok++;document.querySelectorAll('.qo').forEach(x=>{if(+x.dataset.i==c)x.style.borderColor='var(--ok)';else if(x==b)x.style.borderColor='var(--bad)'});
+   $('#qf').innerHTML=`<p><b style="color:var(--${i==c?'ok':'bad'})">${i==c?'Correto!':'Não foi dessa vez.'}</b> ${t[3]}</p><button class="pr" id="qn">${q<3?'Próxima':'Concluir'}</button>`;$('#qn').onclick=()=>{q++;q<4?show():end()}})};
+ const end=()=>{G.res[mi].quiz=ok;G.res[mi].score+=ok*10;renderMis();overlay(true,`<h2>Quiz concluído: ${ok}/4</h2><p>+${ok*10} pontos. ${ok==4?'Excelente!':'Releia as explicações e teste de novo no jogo.'}</p><button class="pr" id="qd">Continuar</button>`);$('#qd').onclick=done};
+ show()}
+function results(){
+ const tot=G.res.reduce((a,r)=>a+r.score,0);G.i=MS.length;
+ overlay(true,`<h1 style="font-size:24px">RESULTADOS</h1><p style="font-size:30px;margin:0;color:var(--ac)"><b>${tot}</b> <span class="mu" style="font-size:14px">pontos</span></p>
+ <table><tr><th>Missão</th><th>lux</th><th>W</th><th>Ofusc.</th><th>Quiz</th><th>Pts</th></tr>${G.res.map((r,i)=>`<tr><td>${MS[i].t}</td><td>${r.lux}</td><td>${r.w}</td><td>${r.g}</td><td>${r.quiz==null?'–':r.quiz+'/4'}</td><td>${r.score}</td></tr>`).join('')}</table>
+ <canvas id="rc" width="520" height="230" style="width:100%"></canvas>
+ <p class="mu sm">Comparativo das configurações finais (lux ÷1000, W ÷70, ofuscamento). Valores são estimativas educacionais.</p>
+ <button class="pr" id="rp">Jogar de novo</button> <button id="rf">Continuar explorando</button>`);
+ drawChart($('#rc'),G.res);$('#rp').onclick=()=>{G.res=[];startMission(0)};$('#rf').onclick=()=>{overlay(false);renderMis()};
+}
+function overlay(on,html){const ov=$('#ov');ov.classList.toggle('on',on);if(html)$('#card').innerHTML=html;if(on&&document.pointerLockElement)document.exitPointerLock()}
+overlay(true,`<h1>LUMEN</h1><h3>Simulador de Conforto Lumínico</h3>
+<p>Você está num quarto de estudos. Ajuste a luz para ler com conforto: iluminância suficiente, sem ofuscamento e gastando pouco.</p>
+<p><kbd>WASD</kbd> andar · mouse: olhar · <kbd>E</kbd> usar o que está na mira (lâmpadas, persianas, painel da parede) · <kbd>T</kbd> trocar lâmpada</p>
+<p class="mu sm">⚠ Valores são estimativas educacionais.</p>
+<button class="pr" id="go">Começar missão 1</button> <button id="fr">Modo livre</button>`);
+$('#go').onclick=()=>{G.run=true;startMission(0);try{cv.requestPointerLock()}catch(e){}};
+$('#fr').onclick=()=>{G.run=true;overlay(false);apply();renderMis()};
+/* ====== CONTROLE ====== */
+let yaw=0,pitch=0;const keys={};
+addEventListener('keydown',e=>{keys[e.code]=1;if($('#ov').classList.contains('on'))return;
+ if(e.code=='KeyE')interact(1);if(e.code=='KeyT'&&tgt&&S.l[tgt]){S.l[tgt].t=nx(Object.keys(LT),S.l[tgt].t);apply()}if(e.code=='BracketRight')adjust(.1);if(e.code=='BracketLeft')adjust(-.1);
+ if(e.code=='KeyH'){const d=$('#ctl').style.display=='none'?'':'none';$('#ctl').style.display=d;$('#mis').style.display=d}
+ if(e.code.startsWith('Arrow'))e.preventDefault()});
+addEventListener('keyup',e=>keys[e.code]=0);
+cv.addEventListener('click',()=>{if(!$('#ov').classList.contains('on'))try{cv.requestPointerLock()}catch(e){}});
+document.addEventListener('mousemove',e=>{if($('#ov').classList.contains('on'))return;
+ if(document.pointerLockElement===cv||(e.buttons&1&&e.target===cv)){yaw-=e.movementX*.0022;pitch=cl(pitch-e.movementY*.0022,-1.4,1.4)}});
+cv.addEventListener('wheel',e=>{adjust(e.deltaY<0?.1:-.1)},{passive:true});
+let tgt=null;const ray=new THREE.Raycaster();ray.far=4.2;
+function look(){ray.setFromCamera({x:0,y:0},cam);const h=ray.intersectObjects(targets,false)[0];tgt=h?h.object.userData.k:null}
+const nx=(a,v)=>a[(a.indexOf(v)+1)%a.length],CYC={hora:()=>{S.hour=S.hour>=18?7:S.hour+1},data:()=>{S.day=nx(Object.keys(DAY),S.day)},cidade:()=>{S.city=nx(Object.keys(CITY),S.city)},janela:()=>{S.orient=nx(Object.keys(ORI),S.orient)},ceu:()=>{S.sky=nx(['claro','parcial','enc'],S.sky)}};
+function interact(){if(!tgt)return;if(CYC[tgt]){CYC[tgt]();apply();return}if(tgt=='blinds'){S.blinds=((Math.round(S.blinds*4)+1)%5)/4}else S.l[tgt].on=!S.l[tgt].on;apply()}
+function adjust(d){if(!tgt)return;if(CYC[tgt]){if(tgt=='hora')S.hour=cl(S.hour+d*5,7,18);else if(d>0)CYC[tgt]();apply();return}if(tgt=='blinds')S.blinds=cl(Math.round((S.blinds+d)*10)/10,0,1);else{const L=S.l[tgt];L.i=cl(Math.round((L.i+d)*20)/20,.05,1);L.on=true}apply()}
+function hint(){const t=$('#hint');if(!tgt){t.textContent='Aponte a mira para uma luminária, a janela ou o painel da parede e aperte E';return}
+ if(labs[tgt]){t.textContent=`${labs[tgt].a}: ${labs[tgt].b} · E: mudar${tgt=='hora'?' · roda: ±30 min':''}`;return}
+ if(tgt=='blinds'){t.textContent=`Persianas ${Math.round(S.blinds*100)}% abertas · E: alternar · roda: ajustar`;return}
+ const L=S.l[tgt];t.textContent=`${L.n} (${LT[L.t].n}): ${L.on?'ligada '+Math.round(L.i*100)+'%':'desligada'} · E: liga/desliga · roda: intensidade · T: trocar lâmpada`}
+const clock=new THREE.Clock();
+function resize(){R.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}addEventListener('resize',resize);resize();
+const win=new THREE.Vector3(1.5,1.65,-3),dir=new THREE.Vector3(),tv=new THREE.Vector3();
+function hit(x,z){return COL.some(b=>x>b[0]-.25&&x<b[1]+.25&&z>b[2]-.25&&z<b[3]+.25)}
+let acc=0;
+function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);
+ const live=!$('#ov').classList.contains('on');
+ if(live){
+  const sp=(keys.ShiftLeft?4.2:2.5)*dt,f=(keys.KeyW?1:0)-(keys.KeyS?1:0),r=(keys.KeyD?1:0)-(keys.KeyA?1:0);
+  yaw+=((keys.ArrowLeft?1:0)-(keys.ArrowRight?1:0))*1.8*dt;pitch=cl(pitch+((keys.ArrowUp?1:0)-(keys.ArrowDown?1:0))*1.4*dt,-1.4,1.4);
+  const dx=(-Math.sin(yaw)*f+Math.cos(yaw)*r)*sp,dz=(-Math.cos(yaw)*f-Math.sin(yaw)*r)*sp,p=cam.position;
+  let nx=cl(p.x+dx,-3.65,3.65),nz=cl(p.z+dz,-2.75,2.75);if(!hit(nx,p.z))p.x=nx;if(!hit(p.x,nz))p.z=nz;
+  look();hint();if(S.auto&&cur){const L=S.l.ceil,e=(500-cur.lux)/(L.k*(.8+.5*S.refl));if(Math.abs(e)>.01){L.i=cl(L.i+e*2*dt,.05,1);L.on=true;apply()}}
+  const m=cur;if(G.i>=0&&G.i<MS.length&&!G.res[G.i]){
+   const ok=MS[G.i].g.every(g=>g[1](m));G.hold=ok?G.hold+dt:0;acc+=dt;if(acc>.15){acc=0;renderMis()}if(G.hold>=2.5)finish()}
+ }
+ cam.rotation.set(pitch,yaw,0);
+ cam.getWorldDirection(dir);tv.copy(win).sub(cam.position).normalize();
+ {const hd=((ORI[S.orient]-yaw*57.3)%360+360)%360;$('#cmp').textContent=`Olhando: ${['N','NE','L','SE','S','SO','O','NO'][Math.round(hd/45)%8]} (${Math.round(hd)}°) · Janela: ${S.orient} · ${CITY[S.city].n}`}
+ $('#gl').style.opacity=cur?(cur.g/100*cl((dir.dot(tv)-.55)/.45,0,1)*.9).toFixed(3):0;
+ R.render(scene,cam);
+}
+apply();renderMis();loop();
+</script></body></html>
